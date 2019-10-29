@@ -14,10 +14,11 @@ class GConfig (object):
         #构建lib库的路径
         self.buildLibInputPath = sys.path[0]
         self.buildLibOutputPath = sys.path[0]
-        self.buildLibScheme = ""
         self.buildLibTargetDevice= True #真机版
         self.buildLibTargetSimulator = True #模拟器版
         self.buildLibRelease = True #Release or Debug
+        self.buildLibFatLib = False # 是否合并真机和模拟器输出产物
+
 
         dict = self.loadFromFile()
         for (name,_) in self.__dict__.items():

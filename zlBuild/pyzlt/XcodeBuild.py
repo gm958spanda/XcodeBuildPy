@@ -33,6 +33,13 @@ class XcodeBuild (pyzlt.CommonClass) :
         #Link Frameworks Automatically
         self.Link_Frameworks_Automatically = False
     
+    #设置xcode版本
+    def func_setXcodeBuilPath(self,path):
+        if path.find(".app") > -1 and path.find("xcode") > -1:
+            path = os.path.join(path,"Contents/Developer/usr/bin/xcodebuild")
+            if os.path.exists(path):
+                self.XcodeBuild = path
+
     def func_xcodebuild_cmdstr(self):
         flags = self.XcodeBuild
         # bitcode
@@ -47,7 +54,7 @@ class XcodeBuild (pyzlt.CommonClass) :
         else:
             flags += " CLANG_MODULES_AUTOLINK=YES"
         
-        #dsym符号
+        #生成dsym符号
         #flags += 'DEBUG_INFORMATION_FORMAT="dwarf-with-dsym"'
 
         #ONLY_ACTIVE_ARCH
@@ -70,13 +77,17 @@ class XcodeBuild (pyzlt.CommonClass) :
 
         return flags
 
+    def func_get_iphoneos_output(self):
+        return os.path.join(self.BuildOutPutPath,"out_iphoneos")
+    def func_get_iphonesimulator_output(self):
+        return os.path.join(self.BuildOutPutPath,"out_iphonesimulator")
+    def func_get_fatlib_output(self):
+        return os.path.join(self.BuildOutPutPath,"out_fatlib")
     #构建真机版
     def func_build_iphoneos(self):
         BUILD_DIR = self.func_get_iphoneos_output()
         if os.path.exists(BUILD_DIR):
-            result = self.shell_exec("rm -fR {}".format(BUILD_DIR))
-            if not result.success():
-                return result
+            self.shell_exec("rm -fR {}".format(BUILD_DIR))
         flags = self.func_xcodebuild_cmdstr()
         shellCMD = flags + " -sdk iphoneos BUILD_DIR={} clean build".format(BUILD_DIR)
         return self.shell_exec(shellCMD)
@@ -85,25 +96,84 @@ class XcodeBuild (pyzlt.CommonClass) :
     def func_build_iphonesimulator(self):
         BUILD_DIR = self.func_get_iphonesimulator_output()
         if os.path.exists(BUILD_DIR):
-            result = self.shell_exec("rm -fR {}".format(BUILD_DIR))
-            if not result.success():
-                return result
+            self.shell_exec("rm -fR {}".format(BUILD_DIR))
         flags = self.func_xcodebuild_cmdstr()
         shellCMD = flags + " -arch x86_64 -arch i386 -sdk iphonesimulator BUILD_DIR={} clean build".format(BUILD_DIR)
         return self.shell_exec(shellCMD)
 
-    def func_get_iphoneos_output(self):
-        return os.path.join(self.BuildOutPutPath,"iphoneos")
-    def func_get_iphonesimulator_output(self):
-        return os.path.join(self.BuildOutPutPath,"iphonesimulator")
+    #fatlib
+    def func_fatlib_after_build(self):
+        fatlib_dir = self.func_get_fatlib_output()
+        configuration = None
+        if self.Release :
+            configuration = "Release"
+        else:
+            configuration = "Debug"
 
-    #设置xcode版本
-    def func_setXcodeBuilPath(self,path):
-        if path.find(".app") > -1 and path.find("xcode") > -1:
-            path = os.path.join(path,"Contents/Developer/usr/bin/xcodebuild")
-            if os.path.exists(path):
-                self.XcodeBuild = path
+        if os.path.exists(fatlib_dir):
+            result = self.shell_exec("rm -fR " + fatlib_dir)
+        os.makedirs(fatlib_dir)
 
+        tmppath = os.path.join(self.func_get_iphoneos_output(),configuration+"-iphoneos")
+        for buildOutput in self.func_get_pathlist(tmppath):
+            # 输出是framework
+            if buildOutput.endswith(".framework"):
+                framework = buildOutput
+
+                baseName = os.path.basename(framework)
+                libname = baseName.replace(".framework","")
+                if baseName.startswith("Pods_"):
+                    continue
+                
+                targetframework = os.path.join(fatlib_dir ,libname)
+                self.func_make_empty_dir(targetframework)
+                targetframework = os.path.join(targetframework, baseName)
+                self.func_make_empty_dir(targetframework)
+
+                lipo_iphoneos = framework
+                copyCMD = "cp -R " + lipo_iphoneos + "/Headers "+targetframework+"/Headers "
+                copyCMD = copyCMD + " && cp " + lipo_iphoneos + "/Info.plist " +targetframework
+                copyCMD = copyCMD + " && cp -R " + lipo_iphoneos + "/Modules " +targetframework+"/Modules "
+                copyCMD = copyCMD + " && cp " + lipo_iphoneos + "/" + libname + " " +targetframework
+
+                result = self.shell_exec(copyCMD)
+                if not result.success():
+                    return result
+
+                lipoDST = os.path.join(targetframework ,libname)
+                lipoSRC_iphoneos = os.path.join(lipo_iphoneos ,libname)
+                lipoSRC_iphonesimulator = lipoSRC_iphoneos.replace(self.func_get_iphoneos_output(),self.func_get_iphonesimulator_output())
+                lipoSRC_iphonesimulator = lipoSRC_iphonesimulator.replace("{}-iphoneos".format(configuration),"{}-iphonesimulator".format(configuration))
+                lipoCMD = "lipo -create -output " + lipoDST + " " + lipoSRC_iphoneos + " " + lipoSRC_iphonesimulator
+                result = self.shell_exec(lipoCMD)
+                if not result.success():
+                    return result
+            #输出是libxxx.a
+            elif buildOutput.endswith(".a"):
+                libMainName = self.Scheme
+                if buildOutput == "lib{}.a".format(libMainName): #是指定构建的scheme
+                    libpath = buildOutput
+                    
+                    lipoDST = os.path.join(fatlib_dir, libMainName)
+                    self.func_make_empty_dir(lipoDST)
+                    #复制头文件
+                    copyCMD = "cp -R " + os.path.dirname(libpath) + "/include/"+libMainName+" "+lipoDST+"/include "
+                    result = self.shell_exec(copyCMD)
+                    if not result.success():
+                        return result
+                    
+                    lipoDST = lipoDST + "/" + libname
+                    
+                    #合并lib => fat lib
+                    lipo_iphoneos = libpath
+                    lipoSRC_iphoneos = libpath
+                    lipoSRC_iphonesimulator = lipoSRC_iphoneos.replace(self.func_get_iphoneos_output() ,self.func_get_iphonesimulator_output())
+                    lipoSRC_iphonesimulator = lipoSRC_iphonesimulator.replace("{}-iphoneos".format(configuration),"{}-iphonesimulator".format(configuration))
+                    lipoCMD = "lipo -create -output " + lipoDST + " " + lipoSRC_iphoneos + " " + lipoSRC_iphonesimulator
+                    result = self.shell_exec(lipoCMD)
+                    if not result.success():
+                        return result
+        return pyzlt.s_operate_success_reult
 
 
 class XcodeBuildUtil:
