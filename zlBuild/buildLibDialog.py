@@ -19,20 +19,19 @@ from pyzlt import XcodeBuild
 
 class buildLibDialog(wx.Dialog):
     def __init__(self, *args, **kwds):
-        # self.p_printCount = 0
-        # self.p_lastPrintTime = 0
 
         # begin wxGlade: buildLibDialog.__init__
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_DIALOG_STYLE
         wx.Dialog.__init__(self, *args, **kwds)
         self.SetTitle("dialog")
         
-        sizer_1 = wx.FlexGridSizer(3, 1, 10, 2)
+        sizer_1 = wx.FlexGridSizer(8, 1, 10, 2)
         
-        grid_sizer_1 = wx.FlexGridSizer(3, 3, 10, 3)
+        grid_sizer_1 = wx.FlexGridSizer(2, 3, 10, 3)
         sizer_1.Add(grid_sizer_1, 10, wx.EXPAND, 0)
         
         static_text_1 = wx.StaticText(self, wx.ID_ANY, u"工程路径")
+        static_text_1.SetMinSize((60, 16))
         grid_sizer_1.Add(static_text_1, 0, 0, 0)
         
         self.inputWorkProjectPathTextView = wx.TextCtrl(self, wx.ID_ANY, "")
@@ -43,6 +42,7 @@ class buildLibDialog(wx.Dialog):
         grid_sizer_1.Add(self.workProjectPathButton, 0, 0, 0)
         
         static_text_2 = wx.StaticText(self, wx.ID_ANY, u"输出路径")
+        static_text_2.SetMinSize((60, 16))
         grid_sizer_1.Add(static_text_2, 0, 0, 0)
         
         self.outputLibPathTextView = wx.TextCtrl(self, wx.ID_ANY, "")
@@ -52,15 +52,31 @@ class buildLibDialog(wx.Dialog):
         self.outputLibPathButton = wx.Button(self, wx.ID_ANY, u"选择路径")
         grid_sizer_1.Add(self.outputLibPathButton, 0, 0, 0)
         
-        static_text_3 = wx.StaticText(self, wx.ID_ANY, u"输出路径")
-        grid_sizer_1.Add(static_text_3, 0, 0, 0)
+        grid_sizer_4 = wx.GridSizer(1, 2, 0, 0)
+        sizer_1.Add(grid_sizer_4, 1, wx.EXPAND, 0)
         
-        self.outputLibPathTextView_copy = wx.TextCtrl(self, wx.ID_ANY, "")
-        self.outputLibPathTextView_copy.SetMinSize((600, 22))
-        grid_sizer_1.Add(self.outputLibPathTextView_copy, 0, 0, 0)
+        static_text_3 = wx.StaticText(self, wx.ID_ANY, "Scheme")
+        grid_sizer_4.Add(static_text_3, 0, 0, 0)
         
-        self.outputLibPathButton_copy = wx.Button(self, wx.ID_ANY, u"选择路径")
-        grid_sizer_1.Add(self.outputLibPathButton_copy, 0, 0, 0)
+        self.combo_box_1 = wx.ComboBox(self, wx.ID_ANY, choices=[], style=wx.CB_DROPDOWN)
+        grid_sizer_4.Add(self.combo_box_1, 0, 0, 0)
+        
+        sizer_1.Add((0, 0), 0, 0, 0)
+        
+        sizer_1.Add((0, 0), 0, 0, 0)
+        
+        sizer_1.Add((0, 0), 0, 0, 0)
+        
+        grid_sizer_2 = wx.GridSizer(1, 3, 0, 0)
+        sizer_1.Add(grid_sizer_2, 1, wx.EXPAND, 0)
+        
+        self.check_list_box_DebugRelease = wx.CheckListBox(self, wx.ID_ANY, choices=["Release", "Debug"])
+        self.check_list_box_DebugRelease.SetSelection(0)
+        grid_sizer_2.Add(self.check_list_box_DebugRelease, 0, wx.EXPAND, 0)
+        
+        grid_sizer_2.Add((0, 0), 0, 0, 0)
+        
+        grid_sizer_2.Add((0, 0), 0, 0, 0)
         
         sizer_2 = wx.GridSizer(1, 1, 0, 0)
         sizer_1.Add(sizer_2, 1, wx.EXPAND, 0)
@@ -82,12 +98,18 @@ class buildLibDialog(wx.Dialog):
 
         self.Bind(wx.EVT_BUTTON, self.onClickLibPathButton, self.workProjectPathButton)
         self.Bind(wx.EVT_BUTTON, self.onClickOutputLibPathButton, self.outputLibPathButton)
-        self.Bind(wx.EVT_BUTTON, self.onClickOutputLibPathButton, self.outputLibPathButton_copy)
+        self.Bind(wx.EVT_CHECKLISTBOX, self.onCheckListBoxDebugRelease, self.check_list_box_DebugRelease)
         self.Bind(wx.EVT_BUTTON, self.onClickBuildButton, self.buildButton)
         # end wxGlade
 
         self.inputWorkProjectPathTextView.SetValue(gConfig.buildLibInputPath)
         self.outputLibPathTextView.SetValue(gConfig.buildLibOutputPath)
+        arr = []
+        if gConfig.buildLibRelease :
+            arr.append(0)
+        if gConfig.buildLibDebug:
+            arr.append(1)
+        self.check_list_box_DebugRelease.SetCheckedItems(arr)
 
     def onClickLibPathButton(self, event):  # wxGlade: buildLibDialog.<event_handler>
         picker = wx.FileDialog(self)
@@ -116,15 +138,24 @@ class buildLibDialog(wx.Dialog):
         
         def start():
             self.infoPrint("开始构建")
-            task = XcodeBuild()
-            task.infoPrint = self.infoPrint
-            task.errorPrint = self.errorPrint
-            # task.continueOrCancelAsk = self.continueOrCancelAsk
 
-            task.WorkSpacePath = self.inputWorkProjectPathTextView.Value.encode('utf-8')
-            task.BuildOutPutPath = self.outputLibPathTextView.Value.encode('utf-8')
-            task.Scheme = 'FireflyMiniapp'
-            task.func_build_iphonesimulator()
+            arr = []
+            for s in self.check_list_box_DebugRelease.GetCheckedItems():
+                if s == 0 :
+                    arr.append(("Release",True))
+                elif s == 1:
+                    arr.append(("Debug",False))
+            for config in arr:
+                self.infoPrint("开始构建{}版".format(config[0]))
+                task = XcodeBuild()
+                task.infoPrint = self.infoPrint
+                task.errorPrint = self.errorPrint
+                task.WorkSpacePath = self.inputWorkProjectPathTextView.Value.encode('utf-8')
+                task.BuildOutPutPath = self.outputLibPathTextView.Value.encode('utf-8')
+                task.Scheme = 'FireflyMiniapp'
+                task.Release = config[1]
+                task.func_build_iphoneos()
+                self.infoPrint("结束构建{}版".format(config[0]))
             self.infoPrint("结束构建")
 
         thread.start_new_thread(start, () )
@@ -133,17 +164,6 @@ class buildLibDialog(wx.Dialog):
 
     def infoPrint(self,info):
         wx.CallAfter(self.__infoPrint,info)
-
-        # ns = time.time()
-        # if self.p_lastPrintTime == 0 :
-        #     self.p_printCount = 0
-        # elif (ns - self.p_lastPrintTime) <= 0.001: #1毫秒
-        #     self.p_printCount += 1
-
-        # if self.p_printCount > 3 :
-        #     time.sleep(0.1) #睡眠100毫秒
-        #     self.p_printCount = 0
-        # self.p_lastPrintTime = ns
         
     def __infoPrint(self,info):
         self.printTextView.AppendText(info + "\n")
@@ -153,4 +173,15 @@ class buildLibDialog(wx.Dialog):
 
     def __errorPrint(self,error):
         self.printTextView.AppendText(error + "\n")
+
+    def onCheckListBoxDebugRelease(self, event):  # wxGlade: buildLibDialog.<event_handler>
+        gConfig.buildLibRelease = False
+        gConfig.buildLibDebug = False
+        arr  = self.check_list_box_DebugRelease.GetCheckedItems()
+        for s in arr:
+            if s == 0:
+                gConfig.buildLibRelease = True
+            elif s == 1:
+                gConfig.buildLibDebug = True
+        event.Skip()
 # end of class buildLibDialog

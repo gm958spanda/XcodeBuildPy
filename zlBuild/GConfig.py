@@ -14,6 +14,8 @@ class GConfig (object):
         self.buildLibInputPath = sys.path[0]
         self.buildLibOutputPath = sys.path[0]
         self.buildLibScheme = ""
+        self.buildLibRelease = True
+        self.buildLibDebug = False
 
         dict = self.loadFromFile()
         for (name,_) in self.__dict__.items():
