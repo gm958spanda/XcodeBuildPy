@@ -15,7 +15,7 @@ import os
 import thread
 
 from GConfig import gConfig
-from pyzlt import XcodeBuild
+from pyzlt import XcodeBuild,XcodeBuildUtil
 
 class buildLibDialog(wx.Dialog):
     def __init__(self, *args, **kwds):
@@ -55,11 +55,11 @@ class buildLibDialog(wx.Dialog):
         grid_sizer_4 = wx.GridSizer(1, 2, 0, 0)
         sizer_1.Add(grid_sizer_4, 1, wx.EXPAND, 0)
         
-        static_text_3 = wx.StaticText(self, wx.ID_ANY, "Scheme")
-        grid_sizer_4.Add(static_text_3, 0, 0, 0)
+        static_text_3 = wx.StaticText(self, wx.ID_ANY, u"编译项")
+        grid_sizer_4.Add(static_text_3, 0, wx.EXPAND, 0)
         
-        self.combo_box_1 = wx.ComboBox(self, wx.ID_ANY, choices=[], style=wx.CB_DROPDOWN)
-        grid_sizer_4.Add(self.combo_box_1, 0, 0, 0)
+        self.combo_box_scheme_targets = wx.ComboBox(self, wx.ID_ANY, choices=[], style=wx.CB_DROPDOWN | wx.CB_READONLY)
+        grid_sizer_4.Add(self.combo_box_scheme_targets, 0, wx.EXPAND, 0)
         
         sizer_1.Add((0, 0), 0, 0, 0)
         
@@ -70,11 +70,13 @@ class buildLibDialog(wx.Dialog):
         grid_sizer_2 = wx.GridSizer(1, 3, 0, 0)
         sizer_1.Add(grid_sizer_2, 1, wx.EXPAND, 0)
         
-        self.check_list_box_DebugRelease = wx.CheckListBox(self, wx.ID_ANY, choices=["Release", "Debug"])
-        self.check_list_box_DebugRelease.SetSelection(0)
-        grid_sizer_2.Add(self.check_list_box_DebugRelease, 0, wx.EXPAND, 0)
+        self.check_list_box_RunEnv = wx.CheckListBox(self, wx.ID_ANY, choices=[u"真机", u"模拟器"])
+        self.check_list_box_RunEnv.SetSelection(0)
+        grid_sizer_2.Add(self.check_list_box_RunEnv, 0, wx.EXPAND, 0)
         
-        grid_sizer_2.Add((0, 0), 0, 0, 0)
+        self.radio_box_ReleaseDebug = wx.RadioBox(self, wx.ID_ANY, u"配置类型", choices=["Release", "Debug"], majorDimension=1, style=wx.RA_SPECIFY_ROWS)
+        self.radio_box_ReleaseDebug.SetSelection(0)
+        grid_sizer_2.Add(self.radio_box_ReleaseDebug, 0, 0, 0)
         
         grid_sizer_2.Add((0, 0), 0, 0, 0)
         
@@ -98,18 +100,32 @@ class buildLibDialog(wx.Dialog):
 
         self.Bind(wx.EVT_BUTTON, self.onClickLibPathButton, self.workProjectPathButton)
         self.Bind(wx.EVT_BUTTON, self.onClickOutputLibPathButton, self.outputLibPathButton)
-        self.Bind(wx.EVT_CHECKLISTBOX, self.onCheckListBoxDebugRelease, self.check_list_box_DebugRelease)
+        self.Bind(wx.EVT_CHECKLISTBOX, self.onCheckListBoxRunEnv, self.check_list_box_RunEnv)
+        self.Bind(wx.EVT_RADIOBOX, self.onRadioBoxReleaseDebug, self.radio_box_ReleaseDebug)
         self.Bind(wx.EVT_BUTTON, self.onClickBuildButton, self.buildButton)
         # end wxGlade
 
         self.inputWorkProjectPathTextView.SetValue(gConfig.buildLibInputPath)
+        self.loadSchemeTargetList(gConfig.buildLibInputPath)
         self.outputLibPathTextView.SetValue(gConfig.buildLibOutputPath)
         arr = []
-        if gConfig.buildLibRelease :
+        if gConfig.buildLibTargetDevice :
             arr.append(0)
-        if gConfig.buildLibDebug:
+        if gConfig.buildLibTargetSimulator:
             arr.append(1)
-        self.check_list_box_DebugRelease.SetCheckedItems(arr)
+        self.check_list_box_RunEnv.SetCheckedItems(arr)
+        if gConfig.buildLibRelease:
+            self.radio_box_ReleaseDebug.SetSelection(0)
+        else:
+            self.radio_box_ReleaseDebug.SetSelection(1)
+
+    def loadSchemeTargetList(self,path):
+        def __loadSchemeTargetList(path):
+            arr = []
+            if path.endswith(".xcworkspace"):
+                arr = XcodeBuildUtil.schemeListOfWorkSpace(path)
+            self.combo_box_scheme_targets.SetItems(arr)
+        wx.CallAfter(__loadSchemeTargetList,path)
 
     def onClickLibPathButton(self, event):  # wxGlade: buildLibDialog.<event_handler>
         picker = wx.FileDialog(self)
@@ -118,6 +134,8 @@ class buildLibDialog(wx.Dialog):
             path = picker.GetPath()
             gConfig.buildLibInputPath = path
             self.inputWorkProjectPathTextView.SetValue(path)
+            self.loadSchemeTargetList(path)
+                
         event.Skip()
 
     def onClickOutputLibPathButton(self, event):  # wxGlade: buildLibDialog.<event_handler>
@@ -128,39 +146,56 @@ class buildLibDialog(wx.Dialog):
             gConfig.buildLibOutputPath = path
             self.outputLibPathTextView.SetValue(path)
         event.Skip()
-
     
     def onClickBuildButton(self, event):  # wxGlade: buildLibDialog.<event_handler>
         self.printTextView.Value = ""
         if self.outputLibPathTextView.Value.lower().startswith(self.inputWorkProjectPathTextView.Value.lower()):
-            self.infoPrint("输出路径不能等于lib库路径，或是其子目录")
+            self.infoPrint("输出路径不能等于工程路径，或是其子目录")
             return
         
         def start():
-            self.infoPrint("开始构建")
+            self.infoPrint("***************开始构建***************")
 
-            arr = []
-            for s in self.check_list_box_DebugRelease.GetCheckedItems():
-                if s == 0 :
-                    arr.append(("Release",True))
-                elif s == 1:
-                    arr.append(("Debug",False))
-            for config in arr:
-                self.infoPrint("开始构建{}版".format(config[0]))
+            arrIndexes  = self.check_list_box_RunEnv.GetCheckedItems()
+            arrStrs =  self.check_list_box_RunEnv.GetCheckedStrings()
+            for index in arrIndexes:
                 task = XcodeBuild()
                 task.infoPrint = self.infoPrint
                 task.errorPrint = self.errorPrint
                 task.WorkSpacePath = self.inputWorkProjectPathTextView.Value.encode('utf-8')
                 task.BuildOutPutPath = self.outputLibPathTextView.Value.encode('utf-8')
-                task.Scheme = 'FireflyMiniapp'
-                task.Release = config[1]
-                task.func_build_iphoneos()
-                self.infoPrint("结束构建{}版".format(config[0]))
-            self.infoPrint("结束构建")
+                task.Scheme = self.combo_box_scheme_targets.GetStringSelection()
+                task.Release = self.radio_box_ReleaseDebug.GetSelection() == 0
+
+                self.infoPrint("构建 {} - {} - Release:{}".format(task.Scheme,arrStrs[index].encode('utf-8'),task.Release))
+                success = True
+                if index == 0 :
+                    success = task.func_build_iphoneos().returncode == 0
+                elif index == 1 :
+                    success = task.func_build_iphonesimulator() == 0
+                self.infoPrint("结束 {} - {} - Release:{}".format(task.Scheme,arrStrs[index].encode('utf-8'),task.Release))
+
+                if not success:
+                    break
+            self.infoPrint("***************结束构建***************")
 
         thread.start_new_thread(start, () )
         event.Skip()
     
+    def onRadioBoxReleaseDebug(self, event):  # wxGlade: buildLibDialog.<event_handler>
+        gConfig.buildLibRelease = self.radio_box_ReleaseDebug.GetSelection() == 0
+        event.Skip()
+
+    def onCheckListBoxRunEnv(self, event):  # wxGlade: buildLibDialog.<event_handler>
+        gConfig.buildLibTargetDevice = False
+        gConfig.buildLibTargetSimulator = False
+        arr  = self.check_list_box_RunEnv.GetCheckedItems()
+        for s in arr:
+            if s == 0:
+                gConfig.buildLibTargetDevice = True
+            elif s == 1:
+                gConfig.buildLibTargetSimulator = True
+        event.Skip()
 
     def infoPrint(self,info):
         wx.CallAfter(self.__infoPrint,info)
@@ -173,15 +208,4 @@ class buildLibDialog(wx.Dialog):
 
     def __errorPrint(self,error):
         self.printTextView.AppendText(error + "\n")
-
-    def onCheckListBoxDebugRelease(self, event):  # wxGlade: buildLibDialog.<event_handler>
-        gConfig.buildLibRelease = False
-        gConfig.buildLibDebug = False
-        arr  = self.check_list_box_DebugRelease.GetCheckedItems()
-        for s in arr:
-            if s == 0:
-                gConfig.buildLibRelease = True
-            elif s == 1:
-                gConfig.buildLibDebug = True
-        event.Skip()
 # end of class buildLibDialog

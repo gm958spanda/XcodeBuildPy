@@ -36,7 +36,7 @@ class mainFrame(wx.Frame):
 
         self.Bind(wx.EVT_BUTTON, self.onClickBuildLibButton, self.buildLibButton)
         self.Bind(wx.EVT_BUTTON, self.onClickMergeLibButton, self.mergeLib)
-        self.Bind(wx.EVT_CLOSE, self.onWindowClose, self.frame)
+        self.Bind(wx.EVT_CLOSE, self.onWindowClose, self)
         # end wxGlade
 
     def onClickMergeLibButton(self, event):  # wxGlade: mainFrame.<event_handler>
@@ -46,6 +46,7 @@ class mainFrame(wx.Frame):
     def onWindowClose(self, event):  # wxGlade: mainFrame.<event_handler>
         gConfig.syncToFile()
         event.Skip()
+        wx.Exit()
 
     def onClickBuildLibButton(self, event):  # wxGlade: mainFrame.<event_handler>
         buildLibDialog(None, wx.ID_ANY, "").ShowModal()

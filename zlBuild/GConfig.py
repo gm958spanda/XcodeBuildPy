@@ -10,12 +10,14 @@ class GConfig (object):
         #合并lib库的路径
         self.mergeLibInputPath = sys.path[0]
         self.mergeLibOutputPath = sys.path[0]
+
         #构建lib库的路径
         self.buildLibInputPath = sys.path[0]
         self.buildLibOutputPath = sys.path[0]
         self.buildLibScheme = ""
-        self.buildLibRelease = True
-        self.buildLibDebug = False
+        self.buildLibTargetDevice= True #真机版
+        self.buildLibTargetSimulator = True #模拟器版
+        self.buildLibRelease = True #Release or Debug
 
         dict = self.loadFromFile()
         for (name,_) in self.__dict__.items():

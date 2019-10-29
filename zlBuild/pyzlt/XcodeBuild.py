@@ -64,9 +64,9 @@ class XcodeBuild (pyzlt.CommonClass) :
 
         #Debug or Releae
         if self.Release:    
-            flags += " -configuration Debug"
-        else:
             flags += " -configuration Release"
+        else:
+            flags += " -configuration Debug"
 
         return flags
 
@@ -74,13 +74,13 @@ class XcodeBuild (pyzlt.CommonClass) :
     def func_build_iphoneos(self):
         flags = self.func_xcodebuild_cmdstr()
         shellCMD = flags + " -sdk iphoneos BUILD_DIR={} clean build".format(self.func_get_iphoneos_output())
-        self.func_shell(shellCMD)
+        return self.shell_exec(shellCMD)
     
     #构建模拟器版
     def func_build_iphonesimulator(self):
         flags = self.func_xcodebuild_cmdstr()
         shellCMD = flags + " -arch x86_64 -arch i386 -sdk iphonesimulator BUILD_DIR={} clean build".format(self.func_get_iphonesimulator_output())
-        self.func_shell(shellCMD)
+        return self.shell_exec(shellCMD)
 
     def func_get_iphoneos_output(self):
         return os.path.join(self.BuildOutPutPath,"iphoneos")
@@ -93,6 +93,30 @@ class XcodeBuild (pyzlt.CommonClass) :
             path = os.path.join(path,"Contents/Developer/usr/bin/xcodebuild")
             if os.path.exists(path):
                 self.XcodeBuild = path
+
+
+
+class XcodeBuildUtil:
+    @classmethod
+    def schemeListOfWorkSpace(self,workspacePath):
+        ret = pyzlt.zl_operate_result()
+        pyzlt.shell_exec("xcodebuild -list -workspace {}".format(workspacePath),ret)
+        stdout = ret.stdout
+
+        schemeslist = None
+        if stdout != None:
+            for line in  stdout.split("\n"):
+                line = line.strip()
+                if len(line) == 0 or line.startswith("Pods-"):
+                    continue
+                if line == "Schemes:":
+                    schemeslist = []
+                elif schemeslist != None:
+                    schemeslist.append(line)
+        if schemeslist == None:
+            schemeslist = []
+        return schemeslist
+
 
 if __name__ == '__main__':    
     pass

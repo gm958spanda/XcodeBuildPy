@@ -22,17 +22,21 @@ s_operate_success_reult = zl_operate_result()
 
 def shell_exec(cmdstr, result):
     proc = subprocess.Popen(cmdstr, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=-1)
-    while proc.poll() is None:
-        for line in iter(proc.stdout.readline, b''):
-            s = str(line)
-            result.stdoutPrint(s)
-            if result.stdout == None:
-                result.stdout = [s]
-            else:
-                result.stdout.append(s)
+    if result.stdoutPrint != None :
+        while proc.poll() is None:
+            for line in iter(proc.stdout.readline, b''):
+                s = str(line)
+                result.stdoutPrint(s)
+                if result.stdout == None:
+                    result.stdout = [s]
+                else:
+                    result.stdout.append(s)
 
     proc.wait()
-    if result.stdout != None:
-        result.stdout = "\n".join(result.stdout)
+    if result.stdoutPrint != None :
+        if result.stdout != None:
+            result.stdout = "\n".join(result.stdout)
+    else:
+        result.stdout = proc.stdout.read()
     result.stderr = proc.stderr.read()
     result.returncode = proc.returncode
