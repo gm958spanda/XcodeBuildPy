@@ -201,11 +201,15 @@ class buildLibDialog(wx.Dialog):
         wx.CallAfter(self.__infoPrint,info)
         
     def __infoPrint(self,info):
-        self.printTextView.AppendText(info + "\n")
+        if info[-1] != '\n' :
+            info += "\n"
+        self.printTextView.AppendText(info)
 
     def errorPrint(self,error):
         wx.CallAfter(self.__errorPrint,error)
 
     def __errorPrint(self,error):
-        self.printTextView.AppendText(error + "\n")
+        if error[-1] != '\n' :
+            error += "\n"
+        self.printTextView.AppendText(error)
 # end of class buildLibDialog

@@ -72,14 +72,24 @@ class XcodeBuild (pyzlt.CommonClass) :
 
     #构建真机版
     def func_build_iphoneos(self):
+        BUILD_DIR = self.func_get_iphoneos_output()
+        if os.path.exists(BUILD_DIR):
+            result = self.shell_exec("rm -fR {}".format(BUILD_DIR))
+            if not result.success():
+                return result
         flags = self.func_xcodebuild_cmdstr()
-        shellCMD = flags + " -sdk iphoneos BUILD_DIR={} clean build".format(self.func_get_iphoneos_output())
+        shellCMD = flags + " -sdk iphoneos BUILD_DIR={} clean build".format(BUILD_DIR)
         return self.shell_exec(shellCMD)
     
     #构建模拟器版
     def func_build_iphonesimulator(self):
+        BUILD_DIR = self.func_get_iphonesimulator_output()
+        if os.path.exists(BUILD_DIR):
+            result = self.shell_exec("rm -fR {}".format(BUILD_DIR))
+            if not result.success():
+                return result
         flags = self.func_xcodebuild_cmdstr()
-        shellCMD = flags + " -arch x86_64 -arch i386 -sdk iphonesimulator BUILD_DIR={} clean build".format(self.func_get_iphonesimulator_output())
+        shellCMD = flags + " -arch x86_64 -arch i386 -sdk iphonesimulator BUILD_DIR={} clean build".format(BUILD_DIR)
         return self.shell_exec(shellCMD)
 
     def func_get_iphoneos_output(self):

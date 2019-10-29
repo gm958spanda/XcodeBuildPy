@@ -94,7 +94,7 @@ class mergeLibDialog(wx.Dialog):
 
     def onClickMergeButton(self, event):  # wxGlade: mergeLibDialog.<event_handler>
         self.printTextView.Value = ""
-        if self.outputLibPathTextView.Value.lower().startswith(self.libPathTextView.Value.lower()):
+        if self.outputLibPathTextView.Value.lower().startswith(self.inputLibPathTextView.Value.lower()):
             self.infoPrint("输出路径不能等于lib库路径，或是其子目录")
             return
         
@@ -105,9 +105,12 @@ class mergeLibDialog(wx.Dialog):
             task.continueOrCancelAsk = self.continueOrCancelAsk
 
             task.new_framework_dir = os.path.join(self.outputLibPathTextView.Value.encode('utf-8'),"merge_dst")
-            task.src_framework_dir = self.libPathTextView.Value.encode('utf-8')
-            task.new_framework_name = 'Firefly'
+            task.src_framework_dir = self.inputLibPathTextView.Value.encode('utf-8')
+            task.new_framework_name = 'zxszl'
+
+            self.infoPrint("***************开始***************")
             task.func_merge_frameworks_libs()
+            self.infoPrint("***************结束***************")
 
         thread.start_new_thread(start, () )
         event.Skip()

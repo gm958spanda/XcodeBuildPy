@@ -20,7 +20,15 @@ class zl_operate_result:
 
 s_operate_success_reult = zl_operate_result()
 
-def shell_exec(cmdstr, result):
+def shell_exec(cmdstr, result = None):
+    if result == None:
+        result = zl_operate_result()
+    else:
+        result.stderr = None
+        result.stdout = None
+        result.returncode = 0
+        result.resultlist = []
+
     proc = subprocess.Popen(cmdstr, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=-1)
     if result.stdoutPrint != None :
         while proc.poll() is None:
@@ -40,3 +48,4 @@ def shell_exec(cmdstr, result):
         result.stdout = proc.stdout.read()
     result.stderr = proc.stderr.read()
     result.returncode = proc.returncode
+    return result
