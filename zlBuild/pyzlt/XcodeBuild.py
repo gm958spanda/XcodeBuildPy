@@ -114,7 +114,13 @@ class XcodeBuild (pyzlt.CommonClass) :
             result = self.shell_exec("rm -fR " + fatlib_dir)
         os.makedirs(fatlib_dir)
 
+        is_iphoneos_output_exits = True
         tmppath = os.path.join(self.func_get_iphoneos_output(),configuration+"-iphoneos")
+        if not os.path.exists(self.func_get_iphoneos_output()): 
+            #真基版本不存在,尝试使用模拟器版本
+            is_iphoneos_output_exits = False
+            tmppath = os.path.join(self.func_get_iphonesimulator_output(),configuration+"-iphonesimulator")
+
         for buildOutput in self.func_get_pathlist(tmppath):
             # 输出是framework
             if buildOutput.endswith(".framework"):
@@ -139,15 +145,17 @@ class XcodeBuild (pyzlt.CommonClass) :
                 result = self.shell_exec(copyCMD)
                 if not result.success():
                     return result
-
-                lipoDST = os.path.join(targetframework ,libname)
-                lipoSRC_iphoneos = os.path.join(lipo_iphoneos ,libname)
-                lipoSRC_iphonesimulator = lipoSRC_iphoneos.replace(self.func_get_iphoneos_output(),self.func_get_iphonesimulator_output())
-                lipoSRC_iphonesimulator = lipoSRC_iphonesimulator.replace("{}-iphoneos".format(configuration),"{}-iphonesimulator".format(configuration))
-                lipoCMD = "lipo -create -output " + lipoDST + " " + lipoSRC_iphoneos + " " + lipoSRC_iphonesimulator
-                result = self.shell_exec(lipoCMD)
-                if not result.success():
-                    return result
+                
+                #只有真机版本和模拟器版本同时存在才需要fatlib操作
+                if is_iphoneos_output_exits and os.path.exists(self.func_get_iphonesimulator_output()):
+                    lipoDST = os.path.join(targetframework ,libname)
+                    lipoSRC_iphoneos = os.path.join(lipo_iphoneos ,libname)
+                    lipoSRC_iphonesimulator = lipoSRC_iphoneos.replace(self.func_get_iphoneos_output(),self.func_get_iphonesimulator_output())
+                    lipoSRC_iphonesimulator = lipoSRC_iphonesimulator.replace("{}-iphoneos".format(configuration),"{}-iphonesimulator".format(configuration))
+                    lipoCMD = "lipo -create -output " + lipoDST + " " + lipoSRC_iphoneos + " " + lipoSRC_iphonesimulator
+                    result = self.shell_exec(lipoCMD)
+                    if not result.success():
+                        return result
             #输出是libxxx.a
             elif buildOutput.endswith(".a"):
                 libMainName = self.Scheme
@@ -162,17 +170,132 @@ class XcodeBuild (pyzlt.CommonClass) :
                     if not result.success():
                         return result
                     
-                    lipoDST = lipoDST + "/" + libname
-                    
-                    #合并lib => fat lib
-                    lipo_iphoneos = libpath
-                    lipoSRC_iphoneos = libpath
-                    lipoSRC_iphonesimulator = lipoSRC_iphoneos.replace(self.func_get_iphoneos_output() ,self.func_get_iphonesimulator_output())
-                    lipoSRC_iphonesimulator = lipoSRC_iphonesimulator.replace("{}-iphoneos".format(configuration),"{}-iphonesimulator".format(configuration))
-                    lipoCMD = "lipo -create -output " + lipoDST + " " + lipoSRC_iphoneos + " " + lipoSRC_iphonesimulator
-                    result = self.shell_exec(lipoCMD)
-                    if not result.success():
-                        return result
+                    #只有真机版本和模拟器版本同时存在才需要fatlib操作
+                    if is_iphoneos_output_exits and os.path.exists(self.func_get_iphonesimulator_output()):
+                        lipoDST = lipoDST + "/" + libname
+                        #合并lib => fat lib
+                        lipo_iphoneos = libpath
+                        lipoSRC_iphoneos = libpath
+                        lipoSRC_iphonesimulator = lipoSRC_iphoneos.replace(self.func_get_iphoneos_output() ,self.func_get_iphonesimulator_output())
+                        lipoSRC_iphonesimulator = lipoSRC_iphonesimulator.replace("{}-iphoneos".format(configuration),"{}-iphonesimulator".format(configuration))
+                        lipoCMD = "lipo -create -output " + lipoDST + " " + lipoSRC_iphoneos + " " + lipoSRC_iphonesimulator
+                        result = self.shell_exec(lipoCMD)
+                        if not result.success():
+                            return result
+            
+        #删除合并前产物（真机和模拟器）
+        dir = self.func_get_iphoneos_output()
+        if os.path.exists(dir):
+            self.shell_exec("rm -fR " + dir)
+        dir = self.func_get_iphonesimulator_output()
+        if os.path.exists(dir):
+            self.shell_exec("rm -fR " + dir)
+        return pyzlt.s_operate_success_reult
+
+    #复制资源和依赖库到构建输出目录
+    def func_copy_static_libs_resource(self):
+        pods_dir = os.path.join( os.path.dirname(self.WorkSpacePath), "Pods")
+        
+        #通过解析Pod sh文件，获取资源文件路径
+        def func_parse_pod_sheme_resources(scheme): 
+            shfile = os.path.join(pods_dir ,"Target Support Files/Pods-{}".format(scheme),"Pods-{}-resources.sh".format(scheme))
+            if not os.path.exists (shfile):
+                return []
+            ret = {}
+            fs = open(shfile)
+            lines = fs.readlines()
+            fs.close()
+            for line in lines:
+                if line.lstrip().startswith("install_resource "):
+                    start = '${PODS_ROOT}/'
+                    end = '"'
+                    line = line[line.find(start) + len(start) : line.rfind(end)]
+                    ret[line] = None
+            return ret.keys()
+        
+        #通过解析Pod xcconfg文件 获取依赖库路径
+        def func_parse_pod_sheme_SEARCH_PATHS(scheme):
+            configfile = os.path.join(pods_dir ,"Target Support Files/Pods-{}".format(scheme),"Pods-{}.release.xcconfig".format(scheme))
+            if not os.path.exists (configfile):
+                return []
+            ret = {}
+            fs = open(configfile)
+            lines = fs.readlines()
+            fs.close()
+            for line in lines:
+                if line.lstrip().startswith("FRAMEWORK_SEARCH_PATHS"):
+                    for item in line.split(" "):
+                        item = item.strip()
+                        if len(item) == 0:
+                            continue
+                        if item.startswith('"${PODS'):
+                            item = item[item.rfind("/")+1:].replace('"',"")
+                            item = os.path.basename(item)
+                            ret[item] = None
+                if line.lstrip().startswith("LIBRARY_SEARCH_PATHS"):
+                    for item in line.split(" "):
+                        item = item.strip()
+                        if len(item) == 0:
+                            continue
+                        if item.startswith('"${PODS_ROOT}/'):
+                            item = item.replace('"${PODS_ROOT}/',"").replace('"',"")
+                            k = item.find("/")
+                            if k > 0 :
+                                item = item[0: k]
+                            ret[item] = None
+            return ret.keys()
+
+        def func_get_all_shemes():
+            def pp_func_parse_pod_shemes(ret,scheme):
+                for i in func_parse_pod_sheme_SEARCH_PATHS(scheme):
+                    pp_func_parse_pod_shemes(ret,i)
+                ret[scheme] = None
+            
+            ret = {}
+            pp_func_parse_pod_shemes(ret,self.Scheme)
+            return ret.keys()
+        
+        g_res_copied = {}
+        for scheme in func_get_all_shemes():
+            # 复制资源
+            for res in func_parse_pod_sheme_resources(scheme):
+                if g_res_copied.has_key(res):
+                    continue
+                g_res_copied[res] = None
+                dst_dir = os.path.join(self.func_get_fatlib_output(), res[:res.find("/")])
+
+                self.func_make_dir_if_not_exist(dst_dir)
+                res = os.path.join(pods_dir,res)
+                copyCMD = "cp -R " + res + " " + dst_dir 
+                result = self.shell_exec(copyCMD)
+                if not result.success():
+                    return result
+            
+            #复制 lib 和framework
+            if self.Scheme == scheme: #此时，会构建新的framework，不从Pods中拷贝
+                continue
+            for lib in self.func_get_pathlist(pods_dir + "/" + scheme):
+                if lib.find(".framework/") > 0 :
+                    continue
+                if lib.endswith(".a") or lib.endswith(".framework"):
+                    dst_dir = os.path.join(self.func_get_fatlib_output(),scheme)
+                    self.func_make_dir_if_not_exist(dst_dir)
+                    tmp = dst_dir + "/" + os.path.basename(lib)
+                    if not os.path.exists(tmp):
+                        copyCMD = "cp -R " + lib + " " + tmp
+                        result = self.shell_exec(copyCMD)
+                        if not result.success():
+                            return result
+        # scheme自身的资源文件复制
+        # for (scheme, config) in self.schemelist.items():
+        #     dst_dir = self.build_dst_dir + "/" + scheme
+        #     self.func_make_dir_if_not_exist(dst_dir)
+        #     if config.has_key("resources"):
+        #         reslist = config["resources"]
+        #         for res in reslist:
+        #             respath = os.path.join(os.path.dirname(self.podfileJsonPath) ,res )
+        #             copyCMD = "cp -R " +  respath + " " + dst_dir
+        #             self.func_shell(copyCMD)
         return pyzlt.s_operate_success_reult
 
 

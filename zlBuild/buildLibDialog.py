@@ -67,15 +67,12 @@ class buildLibDialog(wx.Dialog):
         
         sizer_1.Add((0, 0), 0, 0, 0)
         
-        grid_sizer_2 = wx.GridSizer(1, 4, 0, 0)
+        grid_sizer_2 = wx.GridSizer(1, 3, 0, 0)
         sizer_1.Add(grid_sizer_2, 1, wx.EXPAND, 0)
         
         self.check_list_box_RunEnv = wx.CheckListBox(self, wx.ID_ANY, choices=[u"真机", u"模拟器"])
         self.check_list_box_RunEnv.SetSelection(0)
         grid_sizer_2.Add(self.check_list_box_RunEnv, 0, wx.EXPAND, 0)
-        
-        self.checkbox_fatlib = wx.CheckBox(self, wx.ID_ANY, u"合并真机和模拟器产物")
-        grid_sizer_2.Add(self.checkbox_fatlib, 0, 0, 0)
         
         self.radio_box_ReleaseDebug = wx.RadioBox(self, wx.ID_ANY, u"配置类型", choices=["Release", "Debug"], majorDimension=1, style=wx.RA_SPECIFY_ROWS)
         self.radio_box_ReleaseDebug.SetSelection(0)
@@ -102,7 +99,6 @@ class buildLibDialog(wx.Dialog):
         self.Bind(wx.EVT_BUTTON, self.onClickLibPathButton, self.workProjectPathButton)
         self.Bind(wx.EVT_BUTTON, self.onClickOutputLibPathButton, self.outputLibPathButton)
         self.Bind(wx.EVT_CHECKLISTBOX, self.onCheckListBoxRunEnv, self.check_list_box_RunEnv)
-        self.Bind(wx.EVT_CHECKBOX, self.onCheckBoxFatLib, self.checkbox_fatlib)
         self.Bind(wx.EVT_RADIOBOX, self.onRadioBoxReleaseDebug, self.radio_box_ReleaseDebug)
         self.Bind(wx.EVT_BUTTON, self.onClickBuildButton, self.buildButton)
         # end wxGlade
@@ -120,9 +116,6 @@ class buildLibDialog(wx.Dialog):
             self.radio_box_ReleaseDebug.SetSelection(0)
         else:
             self.radio_box_ReleaseDebug.SetSelection(1)
-        
-        if gConfig.buildLibFatLib:
-            self.checkbox_fatlib.SetValue(wx.CHK_CHECKED)
 
     def loadSchemeTargetList(self,path):
         def __loadSchemeTargetList(path):
@@ -171,22 +164,30 @@ class buildLibDialog(wx.Dialog):
 
             arrIndexes  = self.check_list_box_RunEnv.GetCheckedItems()
             arrStrs =  self.check_list_box_RunEnv.GetCheckedStrings()
-            for index in arrIndexes:
+            for index in range(len(arrIndexes)):
                 self.infoPrint("构建 {} - {} - Release:{}".format(task.Scheme,arrStrs[index].encode('utf-8'),task.Release))
                 success = True
-                if index == 0 :
+                if arrIndexes[index] == 0 :
                     success = task.func_build_iphoneos().returncode == 0
-                elif index == 1 :
-                    success = task.func_build_iphonesimulator() == 0
+                elif arrIndexes[index] == 1 :
+                    success = task.func_build_iphonesimulator().returncode == 0
                 if not success:
+                    self.infoPrint("构建失败 {} - {} - Release:{}".format(task.Scheme,arrStrs[index].encode('utf-8'),task.Release))
                     return
                 self.infoPrint("结束 {} - {} - Release:{}".format(task.Scheme,arrStrs[index].encode('utf-8'),task.Release))
-            if len(arrIndexes) == 2 and self.checkbox_fatlib.IsChecked() :
-                self.infoPrint("合并真机和模拟器输出产物")
-                success = task.func_fatlib_after_build().returncode == 0
-                if not success:
+            if len(arrIndexes) > 0 :
+                self.infoPrint("合并真机、模拟器输出产物")
+                if not task.func_fatlib_after_build().success():
+                    self.infoPrint("合并失败")
                     return
                 self.infoPrint("合并结束")
+            
+                self.infoPrint("复制库和资源文件")
+                if not task.func_copy_static_libs_resource().success():
+                    self.infoPrint("复制库和资源文件失败")
+                    return
+                self.infoPrint("复制库和资源文件结束")
+
             self.infoPrint("***************结束构建***************")
 
         thread.start_new_thread(start, () )
@@ -207,9 +208,6 @@ class buildLibDialog(wx.Dialog):
                 gConfig.buildLibTargetSimulator = True
         event.Skip()
 
-    def onCheckBoxFatLib(self, event):  # wxGlade: buildLibDialog.<event_handler>
-        gConfig.buildLibFatLib = self.checkbox_fatlib.IsChecked()
-        event.Skip()
     def infoPrint(self,info):
         wx.CallAfter(self.__infoPrint,info)
         
