@@ -117,7 +117,7 @@ class XcodeBuild (pyzlt.CommonClass) :
         is_iphoneos_output_exits = True
         tmppath = os.path.join(self.func_get_iphoneos_output(),configuration+"-iphoneos")
         if not os.path.exists(self.func_get_iphoneos_output()): 
-            #真基版本不存在,尝试使用模拟器版本
+            #真机版本不存在,尝试使用模拟器版本
             is_iphoneos_output_exits = False
             tmppath = os.path.join(self.func_get_iphonesimulator_output(),configuration+"-iphonesimulator")
 
@@ -133,14 +133,15 @@ class XcodeBuild (pyzlt.CommonClass) :
                 
                 targetframework = os.path.join(fatlib_dir ,libname)
                 self.func_make_empty_dir(targetframework)
+                
+                lipo_iphoneos = framework
+                copyCMD = "cp -R " + lipo_iphoneos + " "+targetframework+"  "
+                # copyCMD = copyCMD + " && cp " + lipo_iphoneos + "/Info.plist " +targetframework
+                # copyCMD = copyCMD + " && cp -R " + lipo_iphoneos + "/Modules " +targetframework+"/Modules "
+                # copyCMD = copyCMD + " && cp " + lipo_iphoneos + "/" + libname + " " +targetframework
+
                 targetframework = os.path.join(targetframework, baseName)
                 self.func_make_empty_dir(targetframework)
-
-                lipo_iphoneos = framework
-                copyCMD = "cp -R " + lipo_iphoneos + "/Headers "+targetframework+"/Headers "
-                copyCMD = copyCMD + " && cp " + lipo_iphoneos + "/Info.plist " +targetframework
-                copyCMD = copyCMD + " && cp -R " + lipo_iphoneos + "/Modules " +targetframework+"/Modules "
-                copyCMD = copyCMD + " && cp " + lipo_iphoneos + "/" + libname + " " +targetframework
 
                 result = self.shell_exec(copyCMD)
                 if not result.success():
@@ -182,14 +183,6 @@ class XcodeBuild (pyzlt.CommonClass) :
                         result = self.shell_exec(lipoCMD)
                         if not result.success():
                             return result
-            
-        #删除合并前产物（真机和模拟器）
-        dir = self.func_get_iphoneos_output()
-        if os.path.exists(dir):
-            self.shell_exec("rm -fR " + dir)
-        dir = self.func_get_iphonesimulator_output()
-        if os.path.exists(dir):
-            self.shell_exec("rm -fR " + dir)
         return pyzlt.s_operate_success_reult
 
     #复制资源和依赖库到构建输出目录
@@ -287,15 +280,30 @@ class XcodeBuild (pyzlt.CommonClass) :
                         if not result.success():
                             return result
         # scheme自身的资源文件复制
-        # for (scheme, config) in self.schemelist.items():
-        #     dst_dir = self.build_dst_dir + "/" + scheme
-        #     self.func_make_dir_if_not_exist(dst_dir)
-        #     if config.has_key("resources"):
-        #         reslist = config["resources"]
-        #         for res in reslist:
-        #             respath = os.path.join(os.path.dirname(self.podfileJsonPath) ,res )
-        #             copyCMD = "cp -R " +  respath + " " + dst_dir
-        #             self.func_shell(copyCMD)
+        fatSchemeDir =  os.path.join(self.func_get_fatlib_output(),self.Scheme)
+        for path in self.func_get_pathlist(fatSchemeDir):
+            if not path.endswith(".bundle"):
+                continue
+            needMove = True
+            for res in g_res_copied.keys() :
+                res = res.split('/')[-1]
+                if path.endswith(res):
+                    ret = self.shell_exec("rm -fR " + path)
+                    if not ret.success():
+                        return ret
+                    needMove = False
+                    break
+            if needMove:
+                ret = self.shell_exec("mv " + path + " " + fatSchemeDir)
+                if not ret.success():
+                    return ret
+        #删除合并前产物（真机和模拟器）
+        dir = self.func_get_iphoneos_output()
+        if os.path.exists(dir):
+            self.shell_exec("rm -fR " + dir)
+        dir = self.func_get_iphonesimulator_output()
+        if os.path.exists(dir):
+            self.shell_exec("rm -fR " + dir)
         return pyzlt.s_operate_success_reult
 
 
@@ -323,13 +331,3 @@ class XcodeBuildUtil:
 
 if __name__ == '__main__':    
     pass
-    # print ("python MergeLib -n新库名字 libA libB libC ..." )
-    # libPathList = []
-    # newlibName = "dst_mergelibs.a"
-    # for i in range (1,len(sys.argv)):
-    #     ph = sys.argv[i]
-    #     if ph.startswith == "-n":
-    #         newlibName = ph[len("-n"):]
-    #     else:
-    #         libPathList.append(ph)
-    # MergeLib().func_merge_libs(libPathList,newlibName)
