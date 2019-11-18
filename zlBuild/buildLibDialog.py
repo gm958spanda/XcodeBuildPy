@@ -129,7 +129,7 @@ class buildLibDialog(wx.Dialog):
         picker = wx.FileDialog(self)
         picker.SetPath(gConfig.buildLibInputPath)
         if picker.ShowModal() != wx.ID_CANCEL :
-            path = picker.GetPath()
+            path = picker.GetPath().encode('utf-8')
             gConfig.buildLibInputPath = path
             self.inputWorkProjectPathTextView.SetValue(path)
             self.loadSchemeTargetList(path)
@@ -140,7 +140,7 @@ class buildLibDialog(wx.Dialog):
         picker = wx.DirDialog(self)
         picker.SetPath(gConfig.buildLibOutputPath)
         if picker.ShowModal() != wx.ID_CANCEL :
-            path = picker.GetPath()
+            path = picker.GetPath().encode('utf-8')
             gConfig.buildLibOutputPath = path
             self.outputLibPathTextView.SetValue(path)
         event.Skip()

@@ -78,7 +78,7 @@ class mergeLibDialog(wx.Dialog):
         picker = wx.DirDialog(self)
         picker.SetPath(gConfig.mergeLibInputPath)
         if picker.ShowModal() != wx.ID_CANCEL :
-            path = picker.GetPath()
+            path = picker.GetPath().encode('utf-8')
             gConfig.mergeLibInputPath = path
             self.inputLibPathTextView.SetValue(path)
         event.Skip()
@@ -87,7 +87,7 @@ class mergeLibDialog(wx.Dialog):
         picker = wx.DirDialog(self)
         picker.SetPath(gConfig.mergeLibOutputPath)
         if picker.ShowModal() != wx.ID_CANCEL :
-            path = picker.GetPath()
+            path = picker.GetPath().encode('utf-8')
             gConfig.mergeLibOutputPath = path
             self.outputLibPathTextView.SetValue(path)
         event.Skip()
