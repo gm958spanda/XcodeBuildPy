@@ -120,8 +120,8 @@ class buildLibDialog(wx.Dialog):
     def loadSchemeTargetList(self,path):
         def __loadSchemeTargetList(path):
             arr = []
-            if path.endswith(".xcworkspace"):
-                arr = XcodeBuildUtil.schemeListOfWorkSpace(path)
+            if path.endswith(".xcworkspace") or path.endswith(".xcodeproj") :
+                arr = XcodeBuildUtil.schemeListOfProjectOrWorkspace(path)
             self.combo_box_scheme_targets.SetItems(arr)
         wx.CallAfter(__loadSchemeTargetList,path)
 
@@ -157,7 +157,7 @@ class buildLibDialog(wx.Dialog):
             task = XcodeBuild()
             task.infoPrint = self.infoPrint
             task.errorPrint = self.errorPrint
-            task.WorkSpacePath = self.inputWorkProjectPathTextView.Value.encode('utf-8')
+            task.ProjectOrWorkSpacePath = self.inputWorkProjectPathTextView.Value.encode('utf-8')
             task.BuildOutPutPath = self.outputLibPathTextView.Value.encode('utf-8')
             task.Scheme = self.combo_box_scheme_targets.GetStringSelection()
             task.Release = self.radio_box_ReleaseDebug.GetSelection() == 0

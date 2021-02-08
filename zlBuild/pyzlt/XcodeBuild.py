@@ -17,8 +17,8 @@ class XcodeBuild (pyzlt.CommonClass) :
         #或者使用func_setXcodeBuilPath
         self.XcodeBuild = "xcodebuild"
 
-        #workspace 路径
-        self.WorkSpacePath = ""
+        #workspace / projecgt 路径
+        self.ProjectOrWorkSpacePath = ""
         self.Scheme = ""
 
         #Debug or Release
@@ -64,10 +64,16 @@ class XcodeBuild (pyzlt.CommonClass) :
         if self.Quiet:
             flags += " -quiet"
         
-        #workspace
-        flags += " -workspace {}".format(self.WorkSpacePath)
-        #scheme
-        flags += " -scheme {}".format(self.Scheme)
+        if self.ProjectOrWorkSpacePath.endswith(".xcodeproj"):
+            #project
+            flags += " -project {}".format(self.ProjectOrWorkSpacePath)
+            #scheme
+            flags += " -scheme {}".format(self.Scheme)
+        else :
+            #workspace
+            flags += " -workspace {}".format(self.ProjectOrWorkSpacePath)
+            #scheme
+            flags += " -scheme {}".format(self.Scheme)
 
         #Debug or Releae
         if self.Release:    
@@ -187,7 +193,7 @@ class XcodeBuild (pyzlt.CommonClass) :
 
     #复制资源和依赖库到构建输出目录
     def func_copy_static_libs_resource(self):
-        pods_dir = os.path.join( os.path.dirname(self.WorkSpacePath), "Pods")
+        pods_dir = os.path.join( os.path.dirname(self.ProjectOrWorkSpacePath), "Pods")
         
         #通过解析Pod sh文件，获取资源文件路径
         def func_parse_pod_sheme_resources(scheme): 
@@ -309,9 +315,12 @@ class XcodeBuild (pyzlt.CommonClass) :
 
 class XcodeBuildUtil:
     @classmethod
-    def schemeListOfWorkSpace(self,workspacePath):
+    def schemeListOfProjectOrWorkspace(self,projectOrWorkspacePath):
         ret = pyzlt.zl_operate_result()
-        pyzlt.shell_exec("xcodebuild -list -workspace {}".format(workspacePath),ret)
+        if projectOrWorkspacePath.endswith(".xcodeproj") :
+            pyzlt.shell_exec("xcodebuild -list -project {}".format(projectOrWorkspacePath),ret)
+        else :
+            pyzlt.shell_exec("xcodebuild -list -workspace {}".format(projectOrWorkspacePath),ret)
         stdout = ret.stdout
 
         schemeslist = None
