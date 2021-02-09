@@ -17,6 +17,7 @@ class GConfig (object):
         self.buildLibTargetDevice= True #真机版
         self.buildLibTargetSimulator = True #模拟器版
         self.buildLibRelease = True #Release or Debug
+        self.buildLibBitCode = False #bitcode
 
 
         dict = self.loadFromFile()

@@ -67,7 +67,7 @@ class buildLibDialog(wx.Dialog):
         
         sizer_1.Add((0, 0), 0, 0, 0)
         
-        grid_sizer_2 = wx.GridSizer(1, 3, 0, 0)
+        grid_sizer_2 = wx.GridSizer(1, 4, 0, 0)
         sizer_1.Add(grid_sizer_2, 1, wx.EXPAND, 0)
         
         self.check_list_box_RunEnv = wx.CheckListBox(self, wx.ID_ANY, choices=[u"真机", u"模拟器"])
@@ -77,6 +77,11 @@ class buildLibDialog(wx.Dialog):
         self.radio_box_ReleaseDebug = wx.RadioBox(self, wx.ID_ANY, u"配置类型", choices=["Release", "Debug"], majorDimension=1, style=wx.RA_SPECIFY_ROWS)
         self.radio_box_ReleaseDebug.SetSelection(0)
         grid_sizer_2.Add(self.radio_box_ReleaseDebug, 0, 0, 0)
+        
+        self.checkbox_bitcode = wx.CheckBox(self, wx.ID_ANY, "BitCode")
+        grid_sizer_2.Add(self.checkbox_bitcode, 0, 0, 0)
+        
+        grid_sizer_2.Add((0, 0), 0, 0, 0)
         
         sizer_2 = wx.GridSizer(1, 1, 0, 0)
         sizer_1.Add(sizer_2, 1, wx.EXPAND, 0)
@@ -116,6 +121,10 @@ class buildLibDialog(wx.Dialog):
             self.radio_box_ReleaseDebug.SetSelection(0)
         else:
             self.radio_box_ReleaseDebug.SetSelection(1)
+        if gConfig.buildLibBitCode:
+            self.checkbox_bitcode.SetValue(1)
+        else:
+            self.checkbox_bitcode.SetValue(0)
 
     def loadSchemeTargetList(self,path):
         def __loadSchemeTargetList(path):
@@ -161,6 +170,7 @@ class buildLibDialog(wx.Dialog):
             task.BuildOutPutPath = self.outputLibPathTextView.Value.encode('utf-8')
             task.Scheme = self.combo_box_scheme_targets.GetStringSelection()
             task.Release = self.radio_box_ReleaseDebug.GetSelection() == 0
+            task.Enable_BitCode = self.checkbox_bitcode.GetValue() == 1
 
             arrIndexes  = self.check_list_box_RunEnv.GetCheckedItems()
             arrStrs =  self.check_list_box_RunEnv.GetCheckedStrings()
