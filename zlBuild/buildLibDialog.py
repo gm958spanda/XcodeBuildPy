@@ -23,7 +23,9 @@ class buildLibDialog(wx.Dialog):
         # begin wxGlade: buildLibDialog.__init__
         kwds["style"] = kwds.get("style", 0) | wx.DEFAULT_DIALOG_STYLE
         wx.Dialog.__init__(self, *args, **kwds)
+        self.SetSize((740, 728))
         self.SetTitle("dialog")
+        self.SetSize((740, 728))
         
         sizer_1 = wx.FlexGridSizer(8, 1, 10, 2)
         
@@ -67,7 +69,7 @@ class buildLibDialog(wx.Dialog):
         
         sizer_1.Add((0, 0), 0, 0, 0)
         
-        grid_sizer_2 = wx.GridSizer(1, 4, 0, 0)
+        grid_sizer_2 = wx.GridSizer(2, 3, 0, 0)
         sizer_1.Add(grid_sizer_2, 1, wx.EXPAND, 0)
         
         self.check_list_box_RunEnv = wx.CheckListBox(self, wx.ID_ANY, choices=[u"真机", u"模拟器"])
@@ -80,6 +82,12 @@ class buildLibDialog(wx.Dialog):
         
         self.checkbox_bitcode = wx.CheckBox(self, wx.ID_ANY, "BitCode")
         grid_sizer_2.Add(self.checkbox_bitcode, 0, 0, 0)
+        
+        self.radio_box_macho = wx.RadioBox(self, wx.ID_ANY, u"Mach-O 类型", choices=[u"默认", u"静态库（Static Library）", u"动态库（Dynamic Library）"], majorDimension=1, style=wx.RA_SPECIFY_ROWS)
+        self.radio_box_macho.SetSelection(0)
+        grid_sizer_2.Add(self.radio_box_macho, 0, 0, 0)
+        
+        grid_sizer_2.Add((0, 0), 0, 0, 0)
         
         grid_sizer_2.Add((0, 0), 0, 0, 0)
         
@@ -97,7 +105,6 @@ class buildLibDialog(wx.Dialog):
         grid_sizer_3.Add(self.printTextView, 0, wx.ALIGN_CENTER_VERTICAL | wx.EXPAND, 0)
         
         self.SetSizer(sizer_1)
-        sizer_1.Fit(self)
         
         self.Layout()
 
@@ -105,6 +112,7 @@ class buildLibDialog(wx.Dialog):
         self.Bind(wx.EVT_BUTTON, self.onClickOutputLibPathButton, self.outputLibPathButton)
         self.Bind(wx.EVT_CHECKLISTBOX, self.onCheckListBoxRunEnv, self.check_list_box_RunEnv)
         self.Bind(wx.EVT_RADIOBOX, self.onRadioBoxReleaseDebug, self.radio_box_ReleaseDebug)
+        self.Bind(wx.EVT_RADIOBOX, self.onRadioBoxMachO, self.radio_box_macho)
         self.Bind(wx.EVT_BUTTON, self.onClickBuildButton, self.buildButton)
         # end wxGlade
 
@@ -121,6 +129,14 @@ class buildLibDialog(wx.Dialog):
             self.radio_box_ReleaseDebug.SetSelection(0)
         else:
             self.radio_box_ReleaseDebug.SetSelection(1)
+
+        if gConfig.buildLibMachOType == "staticlib":
+            self.radio_box_macho.SetSelection(1)
+        elif gConfig.buildLibMachOType == "mh_dylib":
+            self.radio_box_macho.SetSelection(2)
+        else:
+            self.radio_box_macho.SetSelection(0)
+            
         if gConfig.buildLibBitCode:
             self.checkbox_bitcode.SetValue(1)
         else:
@@ -217,6 +233,16 @@ class buildLibDialog(wx.Dialog):
             elif s == 1:
                 gConfig.buildLibTargetSimulator = True
         event.Skip()
+    def onRadioBoxMachO(self, event):  # wxGlade: buildLibDialog.<event_handler>
+        index = self.radio_box_macho.GetSelection()
+        if index == 1 :
+            gConfig.buildLibMachOType = "staticlib"
+        elif index == 2:
+            gConfig.buildLibMachOType = "mh_dylib"
+        else:
+            gConfig.buildLibMachOType = None
+        event.Skip()
+# end of class buildLibDialog
 
     def infoPrint(self,info):
         wx.CallAfter(self.__infoPrint,info)
@@ -233,4 +259,4 @@ class buildLibDialog(wx.Dialog):
         if error[-1] != '\n' :
             error += "\n"
         self.printTextView.AppendText(error)
-# end of class buildLibDialog
+

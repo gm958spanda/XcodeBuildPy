@@ -7,7 +7,7 @@
             "request": "launch",
             "program": "${workspaceRoot}/app.py",
             "console": "integratedTerminal",
-            "pythonPath": "/usr/local/Cellar/python@2/2.7.15_1/Frameworks/Python.framework/Versions/2.7/Resources/Python.app/Contents/MacOS/Python"
+            "python": "/usr/local/Cellar/python@2/2.7.15_1/Frameworks/Python.framework/Versions/2.7/Resources/Python.app/Contents/MacOS/Python"
         }
     ]
 }

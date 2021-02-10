@@ -21,6 +21,9 @@ class XcodeBuild (pyzlt.CommonClass) :
         self.ProjectOrWorkSpacePath = ""
         self.Scheme = ""
 
+        #Mach-O staticlib 静态库/ mh_dylib 动态库
+        self.MachOType = None
+
         #Debug or Release
         self.Release = True 
 
@@ -48,6 +51,9 @@ class XcodeBuild (pyzlt.CommonClass) :
         else :
             flags += " ENABLE_BITCODE=NO"
         
+        if self.MachOType:
+            flags += " MACH_O_TYPE="+self.MachOType
+
         #CLANG_MODULES_AUTOLINK  Link Frameworks Automatically
         if self.Link_Frameworks_Automatically:
             flags += " CLANG_MODULES_AUTOLINK=NO"
