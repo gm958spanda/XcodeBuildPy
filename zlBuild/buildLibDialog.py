@@ -130,13 +130,8 @@ class buildLibDialog(wx.Dialog):
         else:
             self.radio_box_ReleaseDebug.SetSelection(1)
 
-        if gConfig.buildLibMachOType == "staticlib":
-            self.radio_box_macho.SetSelection(1)
-        elif gConfig.buildLibMachOType == "mh_dylib":
-            self.radio_box_macho.SetSelection(2)
-        else:
-            self.radio_box_macho.SetSelection(0)
-            
+        self.radio_box_macho.SetSelection(self.getIndexFromMachoStr(gConfig.buildLibMachOType))
+
         if gConfig.buildLibBitCode:
             self.checkbox_bitcode.SetValue(1)
         else:
@@ -187,6 +182,7 @@ class buildLibDialog(wx.Dialog):
             task.Scheme = self.combo_box_scheme_targets.GetStringSelection()
             task.Release = self.radio_box_ReleaseDebug.GetSelection() == 0
             task.Enable_BitCode = self.checkbox_bitcode.GetValue() == 1
+            task.MachOType = self.getMachoTypeStr()
 
             arrIndexes  = self.check_list_box_RunEnv.GetCheckedItems()
             arrStrs =  self.check_list_box_RunEnv.GetCheckedStrings()
@@ -233,15 +229,25 @@ class buildLibDialog(wx.Dialog):
             elif s == 1:
                 gConfig.buildLibTargetSimulator = True
         event.Skip()
+    
     def onRadioBoxMachO(self, event):  # wxGlade: buildLibDialog.<event_handler>
+        gConfig.buildLibMachOType = self.getMachoTypeStr()
+        event.Skip()
+    def getMachoTypeStr(self):
         index = self.radio_box_macho.GetSelection()
         if index == 1 :
-            gConfig.buildLibMachOType = "staticlib"
+            return "staticlib"
         elif index == 2:
-            gConfig.buildLibMachOType = "mh_dylib"
+            return "mh_dylib"
         else:
-            gConfig.buildLibMachOType = None
-        event.Skip()
+            return None
+    def getIndexFromMachoStr(self,str):
+        if str == "staticlib":
+            return 1
+        elif str == "mh_dylib":
+            return 2
+        else:
+            return 0
 # end of class buildLibDialog
 
     def infoPrint(self,info):
