@@ -276,7 +276,8 @@ class XcodeBuild (pyzlt.CommonClass) :
             return ret.keys()
         
         g_res_copied = {}
-        for scheme in func_get_all_shemes():
+        all_schemes = func_get_all_shemes()
+        for scheme in all_schemes:
             # 复制资源
             for res in func_parse_pod_sheme_resources(scheme):
                 if g_res_copied.has_key(res):
@@ -312,23 +313,26 @@ class XcodeBuild (pyzlt.CommonClass) :
                         if not result.success():
                             return result
         # scheme自身的资源文件复制
-        fatSchemeDir =  os.path.join(self.func_get_fatlib_output(),self.Scheme)
-        for path in self.func_get_pathlist(fatSchemeDir):
-            if not path.endswith(".bundle"):
+        for scheme in all_schemes:
+            if (scheme == ".."):
                 continue
-            needMove = True
-            for res in g_res_copied.keys() :
-                res = res.split('/')[-1]
-                if path.endswith(res):
-                    ret = self.shell_exec("rm -fR " + path)
+            fatSchemeDir =  os.path.join(self.func_get_fatlib_output(),scheme)
+            for path in self.func_get_pathlist(fatSchemeDir):
+                if not path.endswith(".bundle"):
+                    continue
+                needMove = True
+                for res in g_res_copied.keys() :
+                    res = res.split('/')[-1]
+                    if path.endswith(res):
+                        ret = self.shell_exec("rm -fR " + path)
+                        if not ret.success():
+                            return ret
+                        needMove = False
+                        break
+                if needMove:
+                    ret = self.shell_exec("mv " + path + " " + fatSchemeDir)
                     if not ret.success():
                         return ret
-                    needMove = False
-                    break
-            if needMove:
-                ret = self.shell_exec("mv " + path + " " + fatSchemeDir)
-                if not ret.success():
-                    return ret
         #删除合并前产物（真机和模拟器）
         dir = self.func_get_iphoneos_output()
         if os.path.exists(dir):
