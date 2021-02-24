@@ -174,6 +174,9 @@ class buildLibDialog(wx.Dialog):
         def start():
             self.infoPrint("***************开始构建***************")
 
+            gConfig.buildLibInputPath = self.inputWorkProjectPathTextView.Value.encode('utf-8')
+            gConfig.buildLibOutputPath = self.outputLibPathTextView.Value.encode('utf-8')
+            
             task = XcodeBuild()
             task.infoPrint = self.infoPrint
             task.errorPrint = self.errorPrint

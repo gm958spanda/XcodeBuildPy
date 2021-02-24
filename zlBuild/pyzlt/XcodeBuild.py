@@ -286,8 +286,7 @@ class XcodeBuild (pyzlt.CommonClass) :
                 if True:
                     sub = res[:res.find("/")]
                     if sub == "..":
-                        sub = scheme
-                        g_res_copied.pop(item)
+                        sub = "A_UnHandledRes"
                     dst_dir = os.path.join(self.func_get_fatlib_output(), sub )
 
                 self.func_make_dir_if_not_exist(dst_dir)
