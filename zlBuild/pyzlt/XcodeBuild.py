@@ -227,16 +227,30 @@ class XcodeBuild (pyzlt.CommonClass) :
             fs = open(configfile)
             lines = fs.readlines()
             fs.close()
+
+            other_ldlibs = {}
             for line in lines:
+                if line.lstrip().startswith("OTHER_LDFLAGS"):
+                    for item in line.split(" "):
+                        item = item.strip()
+                        if len(item) == 0:
+                            continue
+                        if item.startswith('-l"'):
+                            item = item[3:-2]
+                            other_ldlibs[item] = None
+                        elif item.startswith('"'):
+                            item = item[1:-2]
+                            other_ldlibs[item] = None
                 if line.lstrip().startswith("FRAMEWORK_SEARCH_PATHS"):
                     for item in line.split(" "):
                         item = item.strip()
                         if len(item) == 0:
                             continue
-                        if item.startswith('"${PODS'):
+                        if item.startswith('"${PODS_'):
                             item = item[item.rfind("/")+1:].replace('"',"")
                             item = os.path.basename(item)
-                            ret[item] = None
+                            if other_ldlibs.has_key(item):
+                                ret[item] = None
                 if line.lstrip().startswith("LIBRARY_SEARCH_PATHS"):
                     for item in line.split(" "):
                         item = item.strip()
@@ -247,7 +261,8 @@ class XcodeBuild (pyzlt.CommonClass) :
                             k = item.find("/")
                             if k > 0 :
                                 item = item[0: k]
-                            ret[item] = None
+                            if other_ldlibs.has_key(item):
+                                ret[item] = None
             return ret.keys()
 
         def func_get_all_shemes():
@@ -267,7 +282,13 @@ class XcodeBuild (pyzlt.CommonClass) :
                 if g_res_copied.has_key(res):
                     continue
                 g_res_copied[res] = None
-                dst_dir = os.path.join(self.func_get_fatlib_output(), res[:res.find("/")])
+                dst_dir = None
+                if True:
+                    sub = res[:res.find("/")]
+                    if sub == "..":
+                        sub = scheme
+                        g_res_copied.pop(item)
+                    dst_dir = os.path.join(self.func_get_fatlib_output(), sub )
 
                 self.func_make_dir_if_not_exist(dst_dir)
                 res = os.path.join(pods_dir,res)
